@@ -995,6 +995,18 @@ button.history-btn.active {
 <input type="tel" id="bookPhone" placeholder="050-0000000" autocomplete="off">
 </div>
 
+<div class="form-group">
+    <label>מספר רכב:</label>
+    <input type="text" id="bookCarNumber" placeholder="הכנס מספר רכב" autocomplete="off">
+</div>
+
+<div class="form-group">
+    <label>סוג טיפול:</label>
+    <select id="bookTreatmentType" style="width:100%; padding:10px;">
+        <option value="" disabled selected>בחר סוג טיפול</option>
+        </select>
+</div>
+
 <div style="display: flex; gap: 10px;">
 <button onclick="submitAdminBooking()" style="flex: 1; background: var(--accent-green); color: black; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">💾 הזמן תור</button>
 <button onclick="closeBookingModal()" style="flex: 1; background: transparent; border: 1px solid var(--text-muted); color: var(--text-main); padding: 10px; border-radius: 6px; cursor: pointer;">ביטול</button>
@@ -2904,16 +2916,24 @@ function logoutAdmin() {
 
 // משתנים לשמירת פרטי הלקוח בין הזמנות
 // משתנים גלובליים לניהול הזמנות מנהל
+/* ==========================================
+מנגנון הזמנת תור למנהל (מעודכן עם רכב וטיפול)
+========================================== */
+
 let cachedClient = { first: '', last: '', phone: '' };
-let clientCacheTimer = null; // <--- זו השורה החסרה שגורמת לשגיאה
+let clientCacheTimer = null;
 let currentBookingTime = null;
 
-// פונקציה לפתיחת החלון (תופעל בלחיצה על תור פנוי)
+// פונקציה לפתיחת החלון
 function openBookingWindow(time) {
   currentBookingTime = time;
-  document.getElementById('bookingTimeDisplay').value = time;
+  const timeDisplay = document.getElementById('bookingTimeDisplay');
+  if(timeDisplay) timeDisplay.value = time;
   
-  // אם יש פרטים בזיכרון (מהזמנה שבוצעה ב-5 הדקות האחרונות)
+  // === 1. טעינת רשימת הטיפולים לתוך ה-Select של המנהל ===
+  loadAdminTreatmentOptions(); 
+
+  // אם יש פרטים בזיכרון
   if (cachedClient.phone && cachedClient.phone !== '') {
     document.getElementById('bookFirstName').value = cachedClient.first;
     document.getElementById('bookLastName').value = cachedClient.last;
@@ -2925,15 +2945,44 @@ function openBookingWindow(time) {
     document.getElementById('bookPhone').value = '';
   }
   
+  // === 2. איפוס שדות חדשים ===
+  if(document.getElementById('bookCarNumber')) document.getElementById('bookCarNumber').value = '';
+  if(document.getElementById('bookTreatmentType')) document.getElementById('bookTreatmentType').value = '';
+  // ==========================
+  
   document.getElementById('adminBookingModal').style.display = 'flex';
   
-  // אם השם ריק, שים עליו פוקוס
+  // פוקוס על השם
   if(!document.getElementById('bookFirstName').value) {
     document.getElementById('bookFirstName').focus();
   }
 }
 
-// סגירת החלון
+// פונקציית עזר לטעינת סוגי טיפול לחלון המנהל
+function loadAdminTreatmentOptions() {
+    const selectEl = document.getElementById('bookTreatmentType');
+    if (!selectEl) return;
+    
+    // בודק אם כבר יש אופציות (כדי לא לטעון סתם כל פעם)
+    if (selectEl.options.length > 1) return;
+
+    db.ref('systemSettings/treatments').once('value').then(snapshot => {
+        const data = snapshot.val();
+        if (data) {
+            const list = Array.isArray(data) ? data : Object.values(data);
+            // מנקה ומשאיר רק את הכותרת
+            selectEl.innerHTML = '<option value="" disabled selected>בחר סוג טיפול</option>';
+            
+            list.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t;
+                opt.innerText = t;
+                selectEl.appendChild(opt);
+            });
+        }
+    });
+}
+
 function closeBookingModal() {
   document.getElementById('adminBookingModal').style.display = 'none';
 }
@@ -2945,7 +2994,13 @@ function submitAdminBooking() {
   let phone = document.getElementById('bookPhone').value.trim();
   const time = currentBookingTime;
   
-  phone = phone.replace(/\D/g, ''); // ניקוי תווים לא רצויים
+  // === 3. שליפת הנתונים החדשים ===
+  const carNum = document.getElementById('bookCarNumber') ? document.getElementById('bookCarNumber').value.trim() : '';
+  const treatmentSelect = document.getElementById('bookTreatmentType');
+  const treatmentVal = treatmentSelect ? treatmentSelect.value : '';
+  // ==============================
+
+  phone = phone.replace(/\D/g, ''); 
   
   // בדיקות תקינות
   if (!first || !time) {
@@ -2958,12 +3013,25 @@ function submitAdminBooking() {
     return;
   }
   
+  // === ולידציה לרכב (אופציונלי - אם אתה רוצה לחייב את המנהל) ===
+  if (!carNum) {
+      alert("חובה להזין מספר רכב");
+      return;
+  }
+  // ==========================================================
+
   // יצירת אובייקט התור
   const newAppt = {
     time: time,
     first: first,
     last: last,
     phone: phone,
+    
+    // === 4. הוספה לאובייקט ===
+    carNumber: carNum,
+    treatmentType: treatmentVal,
+    // ========================
+    
     status: "BOOKED",
     bookedBy: "ADMIN",
     timestamp: Date.now()
@@ -2976,21 +3044,21 @@ function submitAdminBooking() {
     
     db.ref(`appointments/${selectedDate}/appointments`).set(list)
     .then(() => {
-      // === ניהול זיכרון אוטומטי (תמיד פועל) ===
       
-      // איפוס טיימר קודם אם קיים
       if (clientCacheTimer) clearTimeout(clientCacheTimer);
       
-      // שמירת פרטים בזיכרון
       cachedClient = { first, last, phone };
       
-      // הפעלת טיימר ל-5 דקות למחיקת הזיכרון
       clientCacheTimer = setTimeout(() => {
         cachedClient = { first: '', last: '', phone: '' };
-        console.log("פרטי הלקוח נמחקו מהזיכרון (עברו 5 דקות)");
+        console.log("פרטי הלקוח נמחקו מהזיכרון");
       }, 300000);
       
       closeBookingModal();
+      
+      // רענון המסך כדי לראות את התור החדש מיד
+      if (typeof renderSlots === 'function') renderSlots(selectedDate);
+      
     })
     .catch(err => {
       alert("שגיאה בשמירה: " + err.message);
