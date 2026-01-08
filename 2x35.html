@@ -2123,21 +2123,56 @@ function removeFromDb(k, t, phone) {
 
 function exportExcelReport() {
   if(!selectedDate) { alert("יש לבחור יום מהלוח תחילה."); return; }
+  
   const dayData = globalData[selectedDate];
   if(!dayData || !dayData.appointments) { alert("אין נתונים ליום זה."); return; }
+  
   const booked = dayData.appointments.filter(a => a.phone && a.status !== 'DELETED');
   booked.sort((a,b) => a.time.localeCompare(b.time));
+  
   if(booked.length === 0) { alert("אין תורים מוזמנים ביום זה."); return; }
-  const data = booked.map((a, index) => ({ "מס'": index + 1, "שעה": a.time, "שם פרטי": a.first, "שם משפחה": a.last, "טלפון": a.phone }));
+  
+  // 1. עדכון המיפוי - הוספת עמודות רכב
+  const data = booked.map((a, index) => {
+      let carDetails = a.carModel || '';
+      if(a.carYear) carDetails += ` (${a.carYear})`;
+      
+      return { 
+          "מס'": index + 1, 
+          "שעה": a.time, 
+          "שם פרטי": a.first, 
+          "שם משפחה": a.last, 
+          "טלפון": a.phone,
+          "מספר רכב": a.carNumber || '',   // עמודה חדשה
+          "פרטי רכב": carDetails           // עמודה חדשה
+      };
+  });
+
   const ws = XLSX.utils.json_to_sheet(data, { origin: "A3" });
-  ws['!cols'] = [ { wch: 6 }, { wch: 10 }, { wch: 20 }, { wch: 20 }, { wch: 15 } ];
+  
+  // 2. עדכון רוחב עמודות (הוספנו 2 בסוף)
+  ws['!cols'] = [ 
+      { wch: 6 },  // מס
+      { wch: 10 }, // שעה
+      { wch: 20 }, // שם פרטי
+      { wch: 20 }, // שם משפחה
+      { wch: 15 }, // טלפון
+      { wch: 15 }, // מספר רכב
+      { wch: 25 }  // פרטי רכב
+  ];
   
   const titleElement = document.getElementById("calendarTitleSetting");
   const mainTitle = (titleElement && titleElement.value) ? titleElement.value : "דוח תורים";
   const subTitle = `תאריך: ${selectedDate} | סה"כ תורים: ${booked.length}`;
+  
   XLSX.utils.sheet_add_aoa(ws, [[mainTitle]], { origin: "A1" });
   XLSX.utils.sheet_add_aoa(ws, [[subTitle]], { origin: "A2" });
-  ws["!merges"] = [ { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } } ];
+  
+  // 3. עדכון המיזוג - עכשיו זה עד עמודה 6 (סך הכל 7 עמודות, 0-6)
+  ws["!merges"] = [ 
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, 
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } } 
+  ];
   
   const borderStyle = { top: { style: 'thin', color: { rgb: "000000" } }, bottom: { style: 'thin', color: { rgb: "000000" } }, left: { style: 'thin', color: { rgb: "000000" } }, right: { style: 'thin', color: { rgb: "000000" } } };
   const titleStyle = { font: { bold: true, sz: 20, color: { rgb: "000000" }, name: "Segoe UI" }, alignment: { horizontal: "center", vertical: "center" }, fill: { fgColor: { rgb: "FFFFFF" } } };
@@ -2151,10 +2186,16 @@ function exportExcelReport() {
     for (let C = range.s.c; C <= range.e.c; ++C) {
       const cell_address = XLSX.utils.encode_cell({r: R, c: C});
       if (!ws[cell_address]) continue;
+      
       if (R === 0) ws[cell_address].s = titleStyle;
       else if (R === 1) ws[cell_address].s = subTitleStyle;
       else if (R === 2) ws[cell_address].s = headerStyle;
-      else { if (C === 0 || C === 1 || C === 4) ws[cell_address].s = centerCellStyle; else ws[cell_address].s = cellStyle; }
+      else { 
+          // 4. עיצוב תאים:
+          // C=0 (מס), C=1 (שעה), C=4 (טלפון), C=5 (מספר רכב) -> למרכז
+          if (C === 0 || C === 1 || C === 4 || C === 5) ws[cell_address].s = centerCellStyle; 
+          else ws[cell_address].s = cellStyle; 
+      }
     }
   }
   
