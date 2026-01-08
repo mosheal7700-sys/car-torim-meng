@@ -2506,110 +2506,111 @@ function saveDayConfig() {
 פונקציה להדפסת דוח יומי - גרסה משופרת ומתוקנת
 ===================================================== */
 function printDailyReport() {
-  // --- 1. בדיקות מקדימות ---
-  if (typeof selectedDate === 'undefined' || !selectedDate) {
-    alert("יש לבחור יום מהלוח לפני הפקת הדוח.");
+  if (!selectedDate || !globalData[selectedDate]) {
+    alert("אין נתונים להדפסה ליום זה.");
     return;
   }
   
-  if (typeof globalData === 'undefined' || !globalData[selectedDate] || !globalData[selectedDate].appointments) {
-    alert("אין נתונים להדפסה ביום זה.");
+  const day = globalData[selectedDate];
+  const appointments = (day.appointments || []).filter(a => 
+    a.phone && a.status !== 'DELETED' && a.status !== 'BLOCKED'
+  );
+  
+  if (appointments.length === 0) {
+    alert("אין תורים רשומים ליום זה.");
     return;
-  }
-  
-  // --- 2. שליפת הנתונים וסינון ---
-  var dayData = globalData[selectedDate];
-  var bookings = [];
-  
-  // שליפת רק תורים פעילים עם טלפון
-  for (var i = 0; i < dayData.appointments.length; i++) {
-    var item = dayData.appointments[i];
-    if (item.phone && item.status !== 'DELETED') {
-      bookings.push(item);
-    }
   }
   
   // מיון לפי שעה
-  bookings.sort(function(a, b) {
-    return (a.time || '').localeCompare(b.time || '');
+  appointments.sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
+  
+  // יצירת חלון הדפסה
+  const win = window.open('', '_blank', 'width=900,height=800');
+  
+  // בניית ה-HTML
+  let html = `
+    <html dir="rtl">
+    <head>
+      <title>דוח יומי - ${selectedDate}</title>
+      <style>
+        body { font-family: "Segoe UI", sans-serif; padding: 20px; }
+        h1 { text-align: center; margin-bottom: 10px; }
+        .meta { text-align: center; margin-bottom: 20px; font-size: 1.1em; color: #555; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ccc; padding: 10px; text-align: right; vertical-align: middle; }
+        th { background-color: #f3f4f6; font-weight: bold; }
+        tr:nth-child(even) { background-color: #f9fafb; }
+        
+        /* עיצוב סטטוסים */
+        .status-booked { color: #2563eb; }
+        .status-fulfilled { color: #16a34a; font-weight: bold; }
+        
+        @media print {
+          button { display: none; }
+          body { -webkit-print-color-adjust: exact; }
+        }
+      </style>
+    </head>
+    <body>
+      <h1>דוח תורים יומי</h1>
+      <div class="meta">תאריך: <strong>${selectedDate}</strong> | סה"כ תורים: ${appointments.length}</div>
+      
+      <table>
+        <thead>
+          <tr>
+            <th width="10%">שעה</th>
+            <th width="20%">שם הלקוח</th>
+            <th width="15%">טלפון</th>
+            <th width="25%">פרטי רכב</th> <th width="15%">סטטוס</th>
+            <th width="15%">הערות</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+  
+  appointments.forEach(appt => {
+    let statusText = "ממתין";
+    let statusClass = "status-booked";
+    
+    if (appt.fulfilled) {
+      statusText = "מומש / בוצע";
+      statusClass = "status-fulfilled";
+    }
+    
+    // --- עיבוד נתוני רכב ---
+    let carDisplay = '-';
+    if (appt.carNumber) {
+        carDisplay = `<span style="font-weight:bold;">${appt.carNumber}</span>`;
+        if (appt.carModel) {
+            carDisplay += `<br><span style="font-size:0.85em; color:#555;">${appt.carModel}</span>`;
+        }
+    }
+    // -----------------------
+
+    html += `
+      <tr>
+        <td style="font-weight:bold;">${appt.time}</td>
+        <td>${appt.first || ''} ${appt.last || ''}</td>
+        <td>${appt.phone}</td>
+        <td>${carDisplay}</td> <td class="${statusClass}">${statusText}</td>
+        <td>${appt.notes || ''}</td>
+      </tr>
+    `;
   });
   
-  if (bookings.length === 0) {
-    alert("אין תורים מוזמנים ביום זה.");
-    return;
-  }
+  html += `
+        </tbody>
+      </table>
+      
+      <div style="margin-top: 30px; text-align: center;">
+        <button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">הדפס מסמך</button>
+      </div>
+    </body>
+    </html>
+  `;
   
-  // --- 3. הכנת משתנים לכותרת ---
-  var titleEl = document.getElementById("calendarTitleSetting");
-  var businessName = (titleEl && titleEl.value) ? titleEl.value : "דוח תורים";
-  var dateParts = selectedDate.split('-');
-  var displayDate = dateParts[2] + '/' + dateParts[1] + '/' + dateParts[0];
-  
-  // --- 4. בניית ה-HTML (באמצעות מערך למניעת שגיאות) ---
-  var htmlParts = [];
-  
-  // כותרות ועיצוב CSS
-  htmlParts.push('<!DOCTYPE html><html lang="he" dir="rtl"><head><title>Print Report</title>');
-  htmlParts.push('<style>');
-  htmlParts.push('body { font-family: "Segoe UI", Arial, sans-serif; padding: 20px; direction: rtl; color: #333; }');
-  htmlParts.push('h1 { text-align: center; margin: 0; font-size: 24px; }');
-  htmlParts.push('.meta { text-align: center; margin-bottom: 15px; font-size: 16px; color: #555; }');
-  htmlParts.push('table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }');
-  htmlParts.push('th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: right; }');
-  htmlParts.push('th { background-color: #f2f2f2; font-weight: bold; border-bottom: 2px solid #999; }');
-  htmlParts.push('tr:nth-child(even) { background-color: #fafafa; }');
-  htmlParts.push('@media print { body { -webkit-print-color-adjust: exact; } th { background-color: #eee !important; } }');
-  htmlParts.push('</style></head><body>');
-  
-  // תוכן הדף
-  htmlParts.push('<h1>' + businessName + '</h1>');
-  htmlParts.push('<div class="meta">תאריך: <b>' + displayDate + '</b> | סה"כ תורים: <b>' + bookings.length + '</b></div>');
-  
-  // כותרות הטבלה (מתוקן: 4 עמודות כולל שם פרטי ושם משפחה)
-  htmlParts.push('<table><thead><tr>');
-  htmlParts.push('<th width="5%">#</th>');
-  htmlParts.push('<th width="15%">שעה</th>');
-  htmlParts.push('<th width="20%">שם פרטי</th>');
-  htmlParts.push('<th width="20%">שם משפחה</th>');
-  htmlParts.push('<th width="40%">טלפון</th>');
-  htmlParts.push('</tr></thead><tbody>');
-  
-  // שורות הטבלה
-  for (var j = 0; j < bookings.length; j++) {
-    var appt = bookings[j];
-    var firstName = appt.first || '';
-    var lastName = appt.last || '';
-    
-    htmlParts.push('<tr>');
-    htmlParts.push('<td>' + (j + 1) + '</td>');
-    htmlParts.push('<td style="font-weight:bold;">' + (appt.time || '') + '</td>');
-    htmlParts.push('<td>' + firstName + '</td>');
-    htmlParts.push('<td>' + lastName + '</td>');
-    htmlParts.push('<td>' + (appt.phone || '') + '</td>');
-    htmlParts.push('</tr>');
-  }
-  
-  htmlParts.push('</tbody></table>');
-  
-  // סגירה בטוחה של ה-HTML הפנימי
-  htmlParts.push('<' + '/body><' + '/html>');
-  
-  var finalHtml = htmlParts.join('');
-  
-  // --- 5. פתיחת חלון והדפסה ---
-  var printWindow = window.open('', '_blank', 'width=900,height=800');
-  if (printWindow) {
-    printWindow.document.write(finalHtml);
-    printWindow.document.close(); // סגירת כתיבה
-    
-    // טיימר קצר לוודא טעינה ואז הדפסה
-    setTimeout(function() {
-      printWindow.focus();
-      printWindow.print();
-    }, 500);
-  } else {
-    alert("הדפדפן חסם את החלון הקופץ. יש לאשר חלונות קופצים.");
-  }
+  win.document.write(html);
+  win.document.close();
 }
 // --- פונקציות לניהול חלון הדוחות ---
 
