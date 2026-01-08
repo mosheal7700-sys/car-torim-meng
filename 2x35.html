@@ -3117,6 +3117,94 @@ async function fetchCarDetails(carNumber) {
     // אם לא נמצא או הייתה שגיאה
     return { model: '', year: '' };
 }
+// --- משתנים ופונקציות לניהול בנק הטיפולים ---
+
+let globalTreatmentTypes = []; // משתנה לשמירת הרשימה בזיכרון
+
+// 1. פונקציה לטעינת סוגי הטיפולים מהשרת (חובה להפעיל אותה בטעינת האתר)
+function loadTreatmentTypes() {
+  // מאזין לשינויים בנתיב 'systemSettings/treatments' בפיירבייס
+  db.ref('systemSettings/treatments').on('value', (snapshot) => {
+    const data = snapshot.val();
+    
+    // בדיקה אם יש נתונים, ואם כן - שמירה במערך
+    if (data) {
+        globalTreatmentTypes = Array.isArray(data) ? data : Object.values(data);
+    } else {
+        globalTreatmentTypes = [];
+    }
+    
+    // עדכון הרשימה הנפתחת במסך ההגדרות (למחיקה)
+    updateDeleteDropdown();
+    
+    // (אופציונלי) אם חלון הזמנת תור פתוח - נעדכן גם אותו בזמן אמת
+    const bookingSelect = document.getElementById('bookTreatmentType');
+    if(bookingSelect) updateBookingDropdown(bookingSelect);
+  });
+}
+
+// 2. פונקציה להוספת טיפול חדש (מופעלת בלחיצה על +)
+function addTreatmentType() {
+  const input = document.getElementById('newTreatmentName');
+  const val = input.value.trim();
+  
+  if (!val) {
+    alert("נא להקליד שם לטיפול");
+    return;
+  }
+  
+  if (globalTreatmentTypes.includes(val)) {
+    alert("סוג טיפול זה כבר קיים ברשימה");
+    return;
+  }
+  
+  // הוספה למערך ושמירה מחדש בפיירבייס
+  const newList = [...globalTreatmentTypes, val];
+  
+  db.ref('systemSettings/treatments').set(newList)
+    .then(() => {
+      input.value = ''; // ניקוי השדה לאחר הצלחה
+      // alert("הטיפול נוסף בהצלחה!"); // ניתן להוריד את ההערה אם רוצים הודעה
+    })
+    .catch(err => {
+      console.error(err);
+      alert("שגיאה בשמירה");
+    });
+}
+
+// 3. פונקציה להסרת טיפול (מופעלת בלחיצה על הפח)
+function removeTreatmentType() {
+  const select = document.getElementById('deleteTreatmentSelect');
+  const valToRemove = select.value;
+  
+  if (!valToRemove) {
+      alert("נא לבחור טיפול להסרה מהרשימה");
+      return;
+  }
+  
+  if (!confirm(`האם אתה בטוח שברצונך למחוק את "${valToRemove}"?`)) return;
+  
+  // סינון הפריט החוצה
+  const newList = globalTreatmentTypes.filter(t => t !== valToRemove);
+  
+  db.ref('systemSettings/treatments').set(newList)
+    .catch(err => alert("שגיאה במחיקה"));
+}
+
+// 4. פונקציה לעדכון ה-Select במסך ההגדרות (פנימית)
+function updateDeleteDropdown() {
+  const select = document.getElementById('deleteTreatmentSelect');
+  if (!select) return;
+  
+  let html = '<option value="">בחר להסרה...</option>';
+  globalTreatmentTypes.forEach(type => {
+    html += `<option value="${type}">${type}</option>`;
+  });
+  
+  select.innerHTML = html;
+}
+// הפעלת האזנה לבנק הטיפולים
+loadTreatmentTypes();
 </script>
 
 </body>
