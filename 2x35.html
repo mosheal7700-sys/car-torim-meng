@@ -2638,11 +2638,20 @@ function closeReportModal() {
 async function printRangeReport() {
   const startVal = document.getElementById('repStart').value;
   const endVal = document.getElementById('repEnd').value;
-  const phoneVal = document.getElementById('repPhone').value.trim();
   
-  if (!startVal || !endVal || !phoneVal) {
-    alert("נא למלא תאריך התחלה, תאריך סיום ומספר טלפון.");
+  // קליטת שני השדות (טלפון ורכב)
+  const phoneVal = document.getElementById('repPhone').value.trim();
+  const carVal = document.getElementById('repCar') ? document.getElementById('repCar').value.trim() : '';
+  
+  // בדיקה: חובה למלא תאריכים + לפחות שדה חיפוש אחד (טלפון או רכב)
+  if (!startVal || !endVal) {
+    alert("נא למלא תאריך התחלה ותאריך סיום.");
     return;
+  }
+  
+  if (!phoneVal && !carVal) {
+      alert("נא להזין מספר טלפון או מספר רכב לחיפוש.");
+      return;
   }
   
   const startDate = new Date(startVal);
@@ -2653,32 +2662,52 @@ async function printRangeReport() {
     return;
   }
   
-  // הצגת טוען (אופציונלי, אם יש לך אלמנט כזה)
+  // הצגת טוען
   const loading = document.getElementById('loadingOverlay');
   if (loading) loading.style.display = 'flex';
   
   const foundAppointments = [];
   const loopDate = new Date(startDate);
   
+  // ניקוי מספר הרכב לחיפוש (הסרת מקפים אם המשתמש הקליד)
+  const cleanSearchCar = carVal.replace(/\D/g, '');
+
   // לולאה על כל התאריכים בטווח
   while (loopDate <= endDate) {
     const dateKey = loopDate.toISOString().split('T')[0];
     
-    // שליפת נתונים מהפיירבייס (כדי להבטיח שיש לנו הכל, גם אם לא נטען מקומית)
     try {
       const snapshot = await db.ref('appointments/' + dateKey).once('value');
       const dayData = snapshot.val();
       
       if (dayData && dayData.appointments) {
-        // מעבר על התורים של אותו יום
         dayData.appointments.forEach(appt => {
-          // בדיקה אם הטלפון מכיל את המספר שהוזן (התאמה חלקית או מלאה)
-          if (appt && appt.phone && appt.phone.includes(phoneVal) && appt.status !== 'DELETED') {
+          if (!appt || appt.status === 'DELETED') return;
+
+          // --- לוגיקת הסינון המשודרגת ---
+          let matchPhone = true;
+          let matchCar = true;
+
+          // אם הוזן טלפון - נבדוק התאמה
+          if (phoneVal) {
+              matchPhone = appt.phone && appt.phone.includes(phoneVal);
+          }
+
+          // אם הוזן רכב - נבדוק התאמה
+          if (carVal) {
+              const apptCar = (appt.carNumber || '').replace(/\D/g, ''); // ניקוי מקפים מהמסד
+              matchCar = apptCar.includes(cleanSearchCar);
+          }
+
+          // נשמור רק אם שני התנאים מתקיימים (בהתאם למה שהוזן)
+          if (matchPhone && matchCar) {
             foundAppointments.push({
               date: dateKey,
               time: appt.time,
               name: (appt.first || '') + ' ' + (appt.last || ''),
-              phone: appt.phone
+              phone: appt.phone,
+              car: appt.carNumber || '',
+              carModel: appt.carModel || ''
             });
           }
         });
@@ -2692,10 +2721,12 @@ async function printRangeReport() {
   }
   
   if (loading) loading.style.display = 'none';
-  closeReportModal();
+  // סגירת המודל (וודא שזה השם הנכון של הפונקציה אצלך)
+  if (typeof closeReportModal === 'function') closeReportModal();
+  else if (document.getElementById('reportModal')) document.getElementById('reportModal').style.display = 'none';
   
   if (foundAppointments.length === 0) {
-    alert("לא נמצאו תורים למספר זה בטווח התאריכים שנבחר.");
+    alert("לא נמצאו תורים לפי הנתונים שהוזנו בטווח שנבחר.");
     return;
   }
   
@@ -2712,30 +2743,40 @@ async function printRangeReport() {
   
   htmlParts.push('<div class="header">');
   htmlParts.push('<h1>דוח תורים מרוכז</h1>');
-  htmlParts.push(`<p>עבור טלפון: <strong>${phoneVal}</strong></p>`);
+  
+  // כותרת דינמית בהתאם למה שחיפשו
+  let detailsText = '';
+  if (phoneVal) detailsText += `טלפון: <strong>${phoneVal}</strong> `;
+  if (carVal) detailsText += ` | רכב: <strong>${carVal}</strong>`;
+  
+  htmlParts.push(`<p>${detailsText}</p>`);
   htmlParts.push(`<p>טווח: ${startVal} - ${endVal}</p>`);
   htmlParts.push('</div>');
   
   htmlParts.push('<table>');
-  htmlParts.push('<thead><tr><th>תאריך</th><th>שעה</th><th>שם הלקוח</th><th>טלפון</th></tr></thead>');
+  // הוספנו את עמודת "רכב"
+  htmlParts.push('<thead><tr><th>תאריך</th><th>שעה</th><th>שם הלקוח</th><th>טלפון</th><th>רכב</th></tr></thead>');
   htmlParts.push('<tbody>');
   
-  // מיון התוצאות לפי תאריך ושעה
   foundAppointments.sort((a, b) => {
     if (a.date !== b.date) return a.date.localeCompare(b.date);
     return a.time.localeCompare(b.time);
   });
   
   foundAppointments.forEach(item => {
-    // המרת תאריך לפורמט יפה יותר (DD/MM/YYYY)
     const dateParts = item.date.split('-');
     const prettyDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
     
+    // הרכבת מחרוזת הרכב לדוח
+    let carDisplay = item.car;
+    if (item.carModel) carDisplay += ` (${item.carModel})`;
+
     htmlParts.push('<tr>');
     htmlParts.push(`<td>${prettyDate}</td>`);
     htmlParts.push(`<td>${item.time}</td>`);
     htmlParts.push(`<td>${item.name}</td>`);
     htmlParts.push(`<td>${item.phone}</td>`);
+    htmlParts.push(`<td>${carDisplay}</td>`); // העמודה החדשה
     htmlParts.push('</tr>');
   });
   
