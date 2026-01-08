@@ -1653,7 +1653,7 @@ function renderSlots(dateKey) {
       }
       div.classList.add(statusClass);
       
-      // תצוגת רכב בהיסטוריה - הכל בצהוב
+      // תצוגה נקייה גם בהיסטוריה
       let carInfo = '';
       if(a.carNumber) {
            let details = a.carModel || '';
@@ -1744,22 +1744,15 @@ function renderSlots(dateKey) {
     bookings.forEach(appt => {
       const fulfilledClass = appt.fulfilled ? 'fulfilled' : '';
       
-      // --- בניית HTML לפרטי רכב (הכל בצהוב) ---
+      // --- בניית HTML לפרטי רכב (עיצוב נקי ופשוט) ---
       let carHtml = '';
       if (appt.carNumber) {
           let details = appt.carModel || '';
           if (appt.carYear) details += ` (${appt.carYear})`;
           
+          // הסרנו את כל ההצללות והבורדרים
           carHtml = `
-          <div style="
-            font-size:0.95em; 
-            color:#fbbf24; 
-            margin-top:6px; 
-            font-weight:bold; 
-            border-top:1px solid rgba(255,255,255,0.2); 
-            padding-top:4px;
-            text-shadow: 0px 1px 1px rgba(0,0,0,0.5);
-            ">
+          <div style="font-size:0.9em; color:#fbbf24; font-weight:bold; margin-top:2px;">
              🚗 ${appt.carNumber} ${details}
           </div>`;
       }
