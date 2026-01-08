@@ -1652,7 +1652,14 @@ function renderSlots(dateKey) {
         case 'CANCELLED_BY_ADMIN': statusText = "🛠️ בוטל ע״י מנהל"; statusClass = "history-cancelled-admin"; break;
       }
       div.classList.add(statusClass);
-      div.innerHTML = `<div class="history-compact"><div class="history-line-1"><strong>${a.time}</strong> <span class="history-status">${statusText}</span></div>${a.first || a.last || a.phone ? `<div class="history-line-2">${a.first||''} ${a.last||''} ${a.phone ? `· ${a.phone}` : ''}</div>` : ''}</div>${a.phone ? `<div style="font-size:0.8em; opacity:0.8;">📞 ${a.phone}</div>` : ''}`;
+      
+      // הוספת פרטי רכב גם בהיסטוריה (אם תרצה)
+      let carInfo = '';
+      if(a.carNumber) {
+           carInfo = `<div style="font-size:0.85em; color:#fbbf24; margin-top:2px;">🚗 ${a.carNumber} ${a.carModel || ''}</div>`;
+      }
+
+      div.innerHTML = `<div class="history-compact"><div class="history-line-1"><strong>${a.time}</strong> <span class="history-status">${statusText}</span></div>${a.first || a.last || a.phone ? `<div class="history-line-2">${a.first||''} ${a.last||''} ${a.phone ? `· ${a.phone}` : ''}</div>` : ''} ${carInfo}</div>${a.phone ? `<div style="font-size:0.8em; opacity:0.8;">📞 ${a.phone}</div>` : ''}`;
       slotsDiv.appendChild(div);
     });
     return;
@@ -1702,10 +1709,8 @@ function renderSlots(dateKey) {
         return;
     }
     
-    // ⭐ שינוי: במקום style משתמשים ב-class
     const isExpired = isPast || (isToday && tMin < currentMinutes);
     const pastClass = isExpired ? 'past-slot' : '';
-    // ----------------------------------------------------
     
     // הפסקות
     const prevTime = index > 0 ? combined[index - 1] : null;
@@ -1735,16 +1740,36 @@ function renderSlots(dateKey) {
       </div>`;
     }
     
-    // הזמנות (Booked)
+    // === הזמנות (Booked) - החלק המעודכן ===
     const bookings = activeAppointments.filter(x => x.time === time && x.phone && x.status !== 'DELETED');
     bookings.forEach(appt => {
       const fulfilledClass = appt.fulfilled ? 'fulfilled' : '';
+      
+      // --- בניית HTML לפרטי רכב ---
+      let carHtml = '';
+      if (appt.carNumber) {
+          let details = appt.carModel || '';
+          if (appt.carYear) details += ` (${appt.carYear})`;
+          
+          carHtml = `
+          <div style="
+            font-size:0.9em; 
+            color:#fbbf24; 
+            margin-top:4px; 
+            font-weight:bold; 
+            border-top:1px solid rgba(255,255,255,0.1); 
+            padding-top:4px;">
+             🚗 ${appt.carNumber} <span style="font-weight:normal; color:#ddd;">${details}</span>
+          </div>`;
+      }
+      // ------------------------------------
+
       slotsDiv.innerHTML += `
       <div class="slot booked ${fulfilledClass} ${pastClass}">
         <div>
           <strong>${time}</strong> — ${appt.first} ${appt.last}
           <br><small>📞 ${appt.phone}</small>
-          ${enableFulfillment ? `<span class="fulfill-badge ${appt.fulfilled ? 'on' : ''}" onclick="toggleFulfilled('${dateKey}', '${time}', '${appt.phone}', ${!appt.fulfilled})">מומש</span>` : ''}
+          ${carHtml} ${enableFulfillment ? `<span class="fulfill-badge ${appt.fulfilled ? 'on' : ''}" onclick="toggleFulfilled('${dateKey}', '${time}', '${appt.phone}', ${!appt.fulfilled})">מומש</span>` : ''}
         </div>
         ${(!isPast && !appt.fulfilled) ? `<button class="del-btn" onclick="adminCancel('${dateKey}', '${time}', '${appt.phone}')">❌ בטל</button>` : ''}
       </div>`;
@@ -1768,7 +1793,6 @@ function renderSlots(dateKey) {
       for (let i = 0; i < remaining; i++) {
         const countText = totalCapacity > 1 ? ` (${i + 1})` : '';
         
-        // לוגיקה לביטול לחיצה אם עבר הזמן
         const onClickAction = isExpired ? '' : `onclick="openBookingWindow('${time}')"`;
         const cursorStyle = isExpired ? 'cursor: default;' : 'cursor: pointer;';
         const tooltip = isExpired ? 'לא ניתן להזמין בזמן שעבר' : 'לחץ להזמנת תור';
@@ -2951,6 +2975,37 @@ function toggleEnableFulfillment() {
   }
 }
 
+// === פונקציית עזר: שליפת פרטי רכב ממשרד התחבורה ===
+async function fetchCarDetails(carNumber) {
+    if (!carNumber || carNumber.length < 5) return { model: '', year: '' };
+
+    try {
+        // כתובת ה-API של מאגר הרכבים הממשלתי
+        const resourceId = '053cea08-09bc-40ec-8f7a-156f0677aff3'; // מזהה מאגר רכבים פרטיים
+        const cleanNum = carNumber.replace(/\D/g, ''); // ניקוי מקפים וסימנים
+        const url = `https://data.gov.il/api/3/action/datastore_search?resource_id=${resourceId}&q=${cleanNum}`;
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.success && data.result.records.length > 0) {
+            // חיפוש הרשומה המדויקת (ה-API לפעמים מחזיר תוצאות דומות)
+            const car = data.result.records.find(r => String(r.mispar_rechev) === String(cleanNum));
+            
+            if (car) {
+                return {
+                    model: car.tozeret_nm || '',  // דגם (למשל: מאזדה)
+                    year: car.shnat_yitzur || ''  // שנת ייצור (למשל: 2021)
+                };
+            }
+        }
+    } catch (error) {
+        console.error("שגיאה בשליפת פרטי רכב:", error);
+    }
+
+    // אם לא נמצא או הייתה שגיאה
+    return { model: '', year: '' };
+}
 </script>
 
 </body>
