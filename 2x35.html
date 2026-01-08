@@ -1158,12 +1158,12 @@ text-align: center;
         <input type="number" id="historyDays" value="30" style="width:100%; text-align:center;">
     </div>
 
-    <div style="margin-bottom: 15px; border-top: 1px dashed #ccc; padding-top: 10px;">
+    <div style="margin-bottom: 15px; border-top: 1px dashed #555; padding-top: 10px;">
         <label style="font-size: 0.85em; font-weight:bold; display:block; margin-bottom:5px;">ניהול סוגי טיפולים:</label>
         
         <div style="display:flex; gap:5px; margin-bottom:8px;">
             <input type="text" id="newTreatmentName" placeholder="סוג טיפול חדש..." 
-                   style="flex:1; padding:5px; border:1px solid #ccc; border-radius:4px; font-size:0.9em;">
+                   style="flex:1; padding:5px; border:1px solid #6b7280; background: #374151; color: white; border-radius:4px; font-size:0.9em;">
             <button onclick="addTreatmentType()" 
                     style="background:var(--accent-gold, #f59e0b); color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.9em;">
                 +
@@ -1171,8 +1171,8 @@ text-align: center;
         </div>
 
         <div style="display:flex; gap:5px;">
-            <select id="deleteTreatmentSelect" style="flex:1; padding:5px; border:1px solid #ccc; border-radius:4px; background:#f9f9f9; font-size:0.9em;">
-                <option value="">בחר להסרה...</option>
+            <select id="deleteTreatmentSelect" style="flex:1; padding:5px; border:1px solid #6b7280; border-radius:4px; background:#374151; color:white; font-size:0.9em;">
+                <option value="" style="background:#374151;">בחר להסרה...</option>
             </select>
             <button onclick="removeTreatmentType()" 
                     style="background:#ef4444; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.9em;">
@@ -1181,7 +1181,6 @@ text-align: center;
         </div>
     </div>
     <button onclick="saveSystemSettings()" style="width: 100%; background:var(--accent-blue); border:none; padding:8px; color:white; border-radius:4px; cursor:pointer; font-weight:bold;">שמור הגדרות מערכת</button>
-
 </div>
 </div>
 
