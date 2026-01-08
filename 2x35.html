@@ -1807,15 +1807,15 @@ function renderSlots(dateKey) {
           </div>`;
       }
       
-      // === חדש: בניית HTML לסוג הטיפול ===
+// === בניית HTML לסוג הטיפול (עיצוב צהוב כמו הרכב) ===
       let treatmentHtml = '';
       if (appt.treatmentType) {
           treatmentHtml = `
-          <div style="font-size:0.9em; color:#2563eb; font-weight:bold; margin-top:2px;">
+          <div style="font-size:0.9em; color:#fbbf24; font-weight:bold; margin-top:2px;">
              🛠️ ${appt.treatmentType}
           </div>`;
       }
-      // ===================================
+      // ====================================================
 
       slotsDiv.innerHTML += `
       <div class="slot booked ${fulfilledClass} ${pastClass}">
