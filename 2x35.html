@@ -1655,7 +1655,7 @@ function renderSlots(dateKey) {
     if (typeof renderBreaksConfig === "function") renderBreaksConfig(s.breaks || []);
   }
   
-  // ארכיון
+  // ארכיון (הודעה כללית)
   if (isPast && typeof historyMode !== 'undefined' && !historyMode) {
     slotsDiv.innerHTML = `
     <div style="text-align:center; padding:20px; color:var(--text-muted);">
@@ -1669,7 +1669,7 @@ function renderSlots(dateKey) {
   const globalCapacity = parseInt(s.maxSlots) || 1;
   const activeAppointments = day.appointments || [];
   
-  /* --- מצב היסטוריה --- */
+  /* --- מצב היסטוריה (תצוגת עבר) --- */
   if (typeof historyMode !== 'undefined' && historyMode && isPast) {
     const historicAppointments = activeAppointments.filter(a =>
       a.time && (a.status === 'BOOKED' || a.status === 'CANCELLED' || a.status === 'CANCELLED_BY_ADMIN')
@@ -1690,7 +1690,7 @@ function renderSlots(dateKey) {
       }
       div.classList.add(statusClass);
       
-      // תצוגה נקייה גם בהיסטוריה
+      // מידע רכב להיסטוריה
       let carInfo = '';
       if(a.carNumber) {
            let details = a.carModel || '';
@@ -1698,13 +1698,27 @@ function renderSlots(dateKey) {
            carInfo = `<div style="font-size:0.9em; color:#fbbf24; font-weight:bold; margin-top:2px;">🚗 ${a.carNumber} ${details}</div>`;
       }
 
-      div.innerHTML = `<div class="history-compact"><div class="history-line-1"><strong>${a.time}</strong> <span class="history-status">${statusText}</span></div>${a.first || a.last || a.phone ? `<div class="history-line-2">${a.first||''} ${a.last||''} ${a.phone ? `· ${a.phone}` : ''}</div>` : ''} ${carInfo}</div>${a.phone ? `<div style="font-size:0.8em; opacity:0.8;">📞 ${a.phone}</div>` : ''}`;
+      // === חדש: מידע טיפול להיסטוריה ===
+      let treatmentInfo = '';
+      if(a.treatmentType) {
+           treatmentInfo = `<div style="font-size:0.9em; color:#60a5fa; margin-top:2px;">🛠️ ${a.treatmentType}</div>`;
+      }
+      // =================================
+
+      div.innerHTML = `
+        <div class="history-compact">
+            <div class="history-line-1"><strong>${a.time}</strong> <span class="history-status">${statusText}</span></div>
+            ${a.first || a.last || a.phone ? `<div class="history-line-2">${a.first||''} ${a.last||''} ${a.phone ? `· ${a.phone}` : ''}</div>` : ''} 
+            ${carInfo}
+            ${treatmentInfo} </div>
+        ${a.phone ? `<div style="font-size:0.8em; opacity:0.8;">📞 ${a.phone}</div>` : ''}`;
+      
       slotsDiv.appendChild(div);
     });
     return;
   }
   
-  /* --- מצב רגיל --- */
+  /* --- מצב רגיל (ניהול שוטף) --- */
   let base = (s.range1Start && s.range1End && typeof generateSlotsWithBreaks === "function")
   ? generateSlotsWithBreaks(s.range1Start, s.range1End, s.range1Interval, s.breaks || [])
   : [];
@@ -1781,19 +1795,27 @@ function renderSlots(dateKey) {
     bookings.forEach(appt => {
       const fulfilledClass = appt.fulfilled ? 'fulfilled' : '';
       
-      // --- בניית HTML לפרטי רכב (עיצוב נקי ופשוט) ---
+      // --- בניית HTML לפרטי רכב ---
       let carHtml = '';
       if (appt.carNumber) {
           let details = appt.carModel || '';
           if (appt.carYear) details += ` (${appt.carYear})`;
           
-          // הסרנו את כל ההצללות והבורדרים
           carHtml = `
           <div style="font-size:0.9em; color:#fbbf24; font-weight:bold; margin-top:2px;">
              🚗 ${appt.carNumber} ${details}
           </div>`;
       }
-      // ------------------------------------
+      
+      // === חדש: בניית HTML לסוג הטיפול ===
+      let treatmentHtml = '';
+      if (appt.treatmentType) {
+          treatmentHtml = `
+          <div style="font-size:0.9em; color:#2563eb; font-weight:bold; margin-top:2px;">
+             🛠️ ${appt.treatmentType}
+          </div>`;
+      }
+      // ===================================
 
       slotsDiv.innerHTML += `
       <div class="slot booked ${fulfilledClass} ${pastClass}">
@@ -1801,7 +1823,7 @@ function renderSlots(dateKey) {
           <strong>${time}</strong> — ${appt.first} ${appt.last}
           <br><small>📞 ${appt.phone}</small>
           ${carHtml} 
-          ${enableFulfillment ? `<span class="fulfill-badge ${appt.fulfilled ? 'on' : ''}" onclick="toggleFulfilled('${dateKey}', '${time}', '${appt.phone}', ${!appt.fulfilled})">מומש</span>` : ''}
+          ${treatmentHtml} ${enableFulfillment ? `<span class="fulfill-badge ${appt.fulfilled ? 'on' : ''}" onclick="toggleFulfilled('${dateKey}', '${time}', '${appt.phone}', ${!appt.fulfilled})">מומש</span>` : ''}
         </div>
         ${(!isPast && !appt.fulfilled) ? `<button class="del-btn" onclick="adminCancel('${dateKey}', '${time}', '${appt.phone}')">❌ בטל</button>` : ''}
       </div>`;
