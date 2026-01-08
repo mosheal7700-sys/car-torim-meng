@@ -2988,17 +2988,17 @@ function closeBookingModal() {
 }
 
 // ביצוע ההזמנה ושמירה לפיירבייס
-function submitAdminBooking() {
+// שים לב: הוספנו את המילה async לפני המילה function
+async function submitAdminBooking() {
   const first = document.getElementById('bookFirstName').value.trim();
   const last = document.getElementById('bookLastName').value.trim();
   let phone = document.getElementById('bookPhone').value.trim();
   const time = currentBookingTime;
   
-  // === 3. שליפת הנתונים החדשים ===
+  // שליפת הנתונים החדשים
   const carNum = document.getElementById('bookCarNumber') ? document.getElementById('bookCarNumber').value.trim() : '';
   const treatmentSelect = document.getElementById('bookTreatmentType');
   const treatmentVal = treatmentSelect ? treatmentSelect.value : '';
-  // ==============================
 
   phone = phone.replace(/\D/g, ''); 
   
@@ -3013,12 +3013,28 @@ function submitAdminBooking() {
     return;
   }
   
-  // === ולידציה לרכב (אופציונלי - אם אתה רוצה לחייב את המנהל) ===
   if (!carNum) {
       alert("חובה להזין מספר רכב");
       return;
   }
-  // ==========================================================
+
+  // === תיקון: משיכת פרטי רכב (כמו בהזמנת משתמש) ===
+  // נשנה את טקסט הכפתור כדי שהמנהל יבין שהמערכת עובדת
+  const confirmBtn = document.querySelector('#adminBookingModal button[onclick="submitAdminBooking()"]');
+  const originalText = confirmBtn ? confirmBtn.innerText : 'שמור';
+  if(confirmBtn) confirmBtn.innerText = 'מושך נתוני רכב...';
+
+  let extraInfo = { model: '', year: '' };
+  
+  // בדיקה שיש פונקציה כזו ושיש מספר רכב
+  if (typeof fetchCarDetails === 'function' && carNum.length >= 5) {
+      try {
+          extraInfo = await fetchCarDetails(carNum);
+      } catch (error) {
+          console.log("לא הצלחנו למשוך פרטי רכב:", error);
+      }
+  }
+  // ================================================
 
   // יצירת אובייקט התור
   const newAppt = {
@@ -3027,16 +3043,21 @@ function submitAdminBooking() {
     last: last,
     phone: phone,
     
-    // === 4. הוספה לאובייקט ===
     carNumber: carNum,
+    // הוספת הפרטים שנמשכו
+    carModel: extraInfo.model, 
+    carYear: extraInfo.year,
+    
     treatmentType: treatmentVal,
-    // ========================
     
     status: "BOOKED",
     bookedBy: "ADMIN",
     timestamp: Date.now()
   };
   
+  // החזרת טקסט הכפתור למקור
+  if(confirmBtn) confirmBtn.innerText = originalText;
+
   // שליחה לפיירבייס
   db.ref(`appointments/${selectedDate}/appointments`).once('value', snapshot => {
     let list = snapshot.val() || [];
@@ -3056,12 +3077,13 @@ function submitAdminBooking() {
       
       closeBookingModal();
       
-      // רענון המסך כדי לראות את התור החדש מיד
+      // רענון המסך
       if (typeof renderSlots === 'function') renderSlots(selectedDate);
       
     })
     .catch(err => {
       alert("שגיאה בשמירה: " + err.message);
+      if(confirmBtn) confirmBtn.innerText = originalText;
     });
   });
 }
