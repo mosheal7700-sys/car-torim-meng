@@ -7,7 +7,6 @@
 <script>
 window.addEventListener('beforeinstallprompt', function(e) {
   e.preventDefault();
-  console.log('Install prompt blocked immediately in HEAD');
   return false;
 });
 </script>
@@ -33,11 +32,11 @@ body {
 
 .card {
   width: 360px;
-  padding: 30px; /* קצת יותר מרווח פנימי */
-  border-radius: 12px; /* פינות עגולות יותר */
+  padding: 30px; 
+  border-radius: 12px; 
   background: #fff;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  text-align: center; /* ממרכז את הכותרת והכפתור */
+  text-align: center; 
 }
 
 h2 {
@@ -49,7 +48,7 @@ h2 {
 input {
   width: 100%;
   padding: 12px;
-  margin: 10px 0; /* רווח אחיד מלמעלה ומלמטה */
+  margin: 10px 0; 
   border: 1px solid #ddd;
   border-radius: 8px;
   outline: none;
@@ -57,7 +56,6 @@ input {
   transition: border-color 0.3s;
 }
 
-/* אפקט פוקוס לשדה */
 input:focus {
   border-color: #2563eb;
 }
@@ -80,11 +78,17 @@ button:hover {
   background: #1d4ed8;
 }
 
+/* כפתור לא פעיל (עבור התנאים) */
+button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
 #error {
   color: #dc2626;
   margin-top: 12px;
   font-size: 0.9em;
-  min-height: 20px; /* שומר מקום להודעת שגיאה כדי שלא יקפוץ */
+  min-height: 20px; 
 }
 
 .small {
@@ -98,8 +102,6 @@ button:hover {
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 
 <script>
-// הכנס כאן את הגדרות Firebase שלך (אותו firebaseConfig)
-// *****************************החלפה*****************************  
 // Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyA3UGkULozPWRmUGzFPFml67vK0QssEL5U",
@@ -111,41 +113,143 @@ const firebaseConfig = {
   appId: "1:937970174514:web:c4c2fe7c706220b07e0a2b"
 };
 
-
-// *****************************החלפה*****************************  
-
-// רשימת מנהלים - החלף/הוסף כאן מיילים לפי הצורך
+// רשימת מנהלים
 const ADMIN_EMAILS = [
-"alfa990@gmail.com" // החלף למייל שלך
-// ,"admin2@example.com"
+"alfa990@gmail.com" 
 ];
 
 // כתובת פאנל המנהל
-// שים לב: וודא שזה הקובץ הנכון שאליו רוצים לעבור אחרי הכניסה
-// ************** החלפה במידה ושם קובץ הניהול מתחלף ******************* 
-const ADMIN_PANEL_URL = "2x35";
+const ADMIN_PANEL_URL = "2x35"; // וודא שזה השם הנכון של הקובץ שלך
+
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 
-// אם כבר מחובר ומורשה - עבור ישר לפאנל
-auth.onAuthStateChanged(user => {
-  if (user && ADMIN_EMAILS.includes(user.email)) {
-    window.location.href = ADMIN_PANEL_URL;
-  }
-});
+// בדיקה אם המנהל כבר אישר תנאים בעבר + מחובר
+// (נעשה את הבדיקה המלאה ב-DOMContentLoaded למטה)
 </script>
 </head>
 <body>
+
+<div id="termsModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; justify-content:center; align-items:center;">
+    
+    <div style="background:white; width:90%; max-width:700px; border-radius:10px; padding:25px; text-align:center; box-shadow: 0 4px 15px rgba(0,0,0,0.5); position:relative;">
+        
+        <h2 style="margin-top:0; color:#333;">תנאי שימוש ומדיניות פרטיות 📜</h2>
+        
+        <div id="termsScrollBox" onscroll="checkScrollPosition()" 
+             style="height:200px; overflow-y:auto; background:#f9f9f9; color:#333333; border:1px solid #ddd; padding:15px; margin:20px 0; text-align:right; font-size:0.9em; line-height:1.6; border-radius:6px;">
+            
+            <p><b>ברוכים הבאים למערכת הניהול.</b></p>
+            <p>הכניסה למערכת זו מיועדת למורשים בלבד. השימוש כפוף לתנאים הבאים:</p>
+            <p style="color:red; font-size:0.8em;">(גלול למטה כדי לאשר)</p> 
+            
+            <ol style="padding-right:20px;">
+                <li>הגישה למערכת היא אישית וסודית.</li>
+                <li>אין להעביר פרטי גישה (שם משתמש וסיסמה) לצד שלישי.</li>
+                <li>כל פעולה במערכת נרשמת ומנוטרת.</li>
+                <li>יש לשמור על פרטיות הלקוחות בהתאם לחוק הגנת הפרטיות.</li>
+                <li>שימוש לרעה במערכת יוביל לחסימה מיידית ולצעדים משפטיים.</li>
+                <li>המערכת שומרת נתונים על גבי שרתי Firebase המאובטחים.</li>
+                <li>הנך מתחייב להתנתק מהמערכת בסיום העבודה.</li>
+                <li>הגישה למערכת מותרת לצרכי עבודה בלבד.</li>
+                <li>יש לדווח מיד על כל תקלה או חשד לפריצה.</li>
+                <li>הנהלת המערכת רשאית לשלול גישה בכל עת וללא התראה מוקדמת.</li>
+            </ol>
+            <p><b>סוף התקנון.</b></p>
+        </div>
+
+        <div style="margin-bottom:20px; text-align:right;">
+            <label id="termsLabel" style="cursor:not-allowed; display:flex; align-items:center; color:#000000;">
+                <input type="checkbox" id="acceptTermsCheckbox" disabled style="width:18px; height:18px; margin-left:10px;">
+                <span>קראתי, הבנתי ואישרתי את התנאים</span>
+            </label>
+        </div>
+
+        <button onclick="acceptTerms()" id="acceptBtn" disabled>
+            כניסה למערכת
+        </button>
+
+    </div>
+</div>
 <div class="card">
-<h2>כניסת מנהל</h2>
-<input id="email" type="email" placeholder="מייל מנהל" dir="ltr" style="direction: ltr; text-align: left;" />
-<input id="password" type="password" placeholder="סיסמה" dir="ltr" style="direction: ltr; text-align: left;" />
-<button onclick="login()">התחבר</button>
-<div id="error"></div>
-<div class="small">השתמש ב־Email + Password. אפשר להוסיף עוד מיילים בקובץ.</div>
+    <h2>כניסת מנהל</h2>
+    <input id="email" type="email" placeholder="מייל מנהל" dir="ltr" style="direction: ltr; text-align: left;" />
+    <input id="password" type="password" placeholder="סיסמה" dir="ltr" style="direction: ltr; text-align: left;" />
+    <button onclick="login()">התחבר</button>
+    <div id="error"></div>
+    <div class="small">השתמש ב־Email + Password.</div>
 </div>
 
 <script>
+// --- לוגיקה לתנאי שימוש ---
+
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. קודם כל בודקים אם המנהל כבר אישר תנאים
+    checkTermsAcceptance();
+    
+    // 2. הגדרת משתנים
+    const checkbox = document.getElementById('acceptTermsCheckbox');
+    const btn = document.getElementById('acceptBtn');
+    
+    // 3. מאזין לתיבת הסימון
+    if(checkbox && btn) {
+        checkbox.addEventListener('change', function() {
+            if(this.checked) {
+                btn.disabled = false;
+                btn.style.background = "#28a745"; // ירוק
+                btn.style.cursor = "pointer";
+            } else {
+                btn.disabled = true;
+                btn.style.background = "#ccc"; // אפור
+                btn.style.cursor = "not-allowed";
+            }
+        });
+    }
+});
+
+function checkTermsAcceptance() {
+    // שם מפתח ייחודי למנהל (כדי לא להתנגש עם המשתמש הרגיל)
+    const hasAccepted = localStorage.getItem("termsAccepted_admin_v1"); 
+    
+    if (!hasAccepted) {
+        // אם לא אישר, מציגים את המודל
+        const modal = document.getElementById('termsModal');
+        if(modal) modal.style.display = 'flex';
+    } else {
+        // אם כבר אישר בעבר, בודקים אם הוא כבר מחובר ומעבירים אותו
+        auth.onAuthStateChanged(user => {
+            if (user && ADMIN_EMAILS.includes(user.email)) {
+                window.location.href = ADMIN_PANEL_URL;
+            }
+        });
+    }
+}
+
+// פונקציית בדיקת גלילה
+function checkScrollPosition() {
+    const box = document.getElementById('termsScrollBox');
+    const checkbox = document.getElementById('acceptTermsCheckbox');
+    const label = document.getElementById('termsLabel');
+
+    if (box.scrollTop + box.clientHeight >= box.scrollHeight - 5) {
+        checkbox.disabled = false;
+        label.style.cursor = "pointer";
+    }
+}
+
+// פונקציית אישור התנאים
+function acceptTerms() {
+    localStorage.setItem("termsAccepted_admin_v1", "true");
+    document.getElementById('termsModal').style.display = 'none';
+    
+    // אחרי שאישר, בודקים שוב אם הוא כבר מחובר (למקרה שנשאר מחובר מסשן קודם)
+    if (auth.currentUser && ADMIN_EMAILS.includes(auth.currentUser.email)) {
+        window.location.href = ADMIN_PANEL_URL;
+    }
+}
+
+// --- לוגיקה להתחברות ---
+
 function login() {
   const email = document.getElementById('email').value.trim();
   const pass = document.getElementById('password').value;
@@ -157,19 +261,15 @@ function login() {
     return;
   }
   
-  // הגדרה שהחיבור יהיה תקף רק לסשן הנוכחי (ברגע שסוגרים דפדפן - מתנתק)
   auth.setPersistence(firebase.auth.Auth.Persistence.SESSION)
   .then(() => {
-    // ביצוע ההתחברות רק אחרי שהגדרנו את סוג הזיכרון
     return auth.signInWithEmailAndPassword(email, pass);
   })
   .then((userCredential) => {
-    // בדיקה אם המייל ברשימת המורשים
     if (ADMIN_EMAILS.includes(userCredential.user.email)) {
       window.location.href = ADMIN_PANEL_URL;
     } else {
       err.innerText = 'אין לך הרשאת ניהול.';
-      // התנתקות מיידית אם המשתמש לא מורשה
       auth.signOut();
     }
   })
@@ -178,14 +278,11 @@ function login() {
     err.innerText = 'שגיאה בהתחברות: ' + error.message;
   });
 }
-// --- הוספת תמיכה במקש Enter ---
 
-// מאזין לשדה הסיסמה
 document.getElementById("password").addEventListener("keypress", function(event) {
-  // אם המקש שנלחץ הוא Enter
   if (event.key === "Enter") {
-    event.preventDefault(); // מונע ירידת שורה מיותרת
-    login(); // מפעיל את פונקציה ההתחברות
+    event.preventDefault();
+    login();
   }
 });
 </script>
