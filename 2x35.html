@@ -3240,7 +3240,7 @@ function loadTreatmentTypes() {
   db.ref('systemSettings/treatments').on('value', (snapshot) => {
     const data = snapshot.val();
     
-    // בדיקה אם יש נתונים, ואם כן - שמירה במערך
+    // תיקון: בדיקה חכמה יותר - אם יש דאטה, נשתמש בו, אחרת נאתחל למערך ריק
     if (data) {
         globalTreatmentTypes = Array.isArray(data) ? data : Object.values(data);
     } else {
@@ -3252,13 +3252,22 @@ function loadTreatmentTypes() {
     
     // (אופציונלי) אם חלון הזמנת תור פתוח - נעדכן גם אותו בזמן אמת
     const bookingSelect = document.getElementById('bookTreatmentType');
-    if(bookingSelect) updateBookingDropdown(bookingSelect);
+    if(bookingSelect && typeof updateBookingDropdown === 'function') {
+        updateBookingDropdown(bookingSelect);
+    }
   });
 }
 
 // 2. פונקציה להוספת טיפול חדש (מופעלת בלחיצה על +)
 function addTreatmentType() {
-  const input = document.getElementById('newTreatmentName');
+  // תיקון: וידוא שה-ID תואם למה שיש ב-HTML (בדרך כלל newTreatmentInput)
+  const input = document.getElementById('newTreatmentInput') || document.getElementById('newTreatmentName');
+  
+  if (!input) {
+      console.error("שגיאה: שדה הקלט לא נמצא בקוד ה-HTML");
+      return;
+  }
+
   const val = input.value.trim();
   
   if (!val) {
@@ -3266,6 +3275,11 @@ function addTreatmentType() {
     return;
   }
   
+  // הגנה נוספת: אם המשתנה לא אותחל, נאתחל אותו עכשיו
+  if (!Array.isArray(globalTreatmentTypes)) {
+      globalTreatmentTypes = [];
+  }
+
   if (globalTreatmentTypes.includes(val)) {
     alert("סוג טיפול זה כבר קיים ברשימה");
     return;
@@ -3277,11 +3291,11 @@ function addTreatmentType() {
   db.ref('systemSettings/treatments').set(newList)
     .then(() => {
       input.value = ''; // ניקוי השדה לאחר הצלחה
-      // alert("הטיפול נוסף בהצלחה!"); // ניתן להוריד את ההערה אם רוצים הודעה
+      console.log("הטיפול נוסף בהצלחה");
     })
     .catch(err => {
       console.error(err);
-      alert("שגיאה בשמירה");
+      alert("שגיאה בשמירה: " + err.message);
     });
 }
 
@@ -3310,12 +3324,16 @@ function updateDeleteDropdown() {
   if (!select) return;
   
   let html = '<option value="">בחר להסרה...</option>';
-  globalTreatmentTypes.forEach(type => {
-    html += `<option value="${type}">${type}</option>`;
-  });
+  
+  if (Array.isArray(globalTreatmentTypes)) {
+      globalTreatmentTypes.forEach(type => {
+        html += `<option value="${type}">${type}</option>`;
+      });
+  }
   
   select.innerHTML = html;
 }
+
 // הפעלת האזנה לבנק הטיפולים
 loadTreatmentTypes();
 </script>
