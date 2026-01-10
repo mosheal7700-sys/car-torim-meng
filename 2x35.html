@@ -2565,15 +2565,23 @@ function saveDayConfig() {
     return;
   }
   
-  /* ========= 5. בניית עדכון ========= */
+/* ========= 5. בניית עדכון ========= */
   
   const updates = {};
   
   datesToApply.forEach(k => {
+    // 1. הגדרת ההגדרות (כרגיל)
     updates[`appointments/${k}/settings`] = settingsObj;
     
+    // =======================================================
+    // === תוספת חובה: הוספת העוגן גם בפתיחת יום ע"י מנהל ===
+    // =======================================================
+    updates[`appointments/${k}/_isOpen`] = true; 
+    
+    // עדכון הזיכרון המקומי (כדי שהמערכת תדע מיד שהיום פתוח בלי רענון)
     if (!globalData[k]) globalData[k] = {};
     globalData[k].settings = settingsObj;
+    globalData[k]._isOpen = true; 
   });
   
   if (typeof db === 'undefined') {
