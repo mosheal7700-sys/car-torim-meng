@@ -1709,7 +1709,7 @@ function renderSlots(dateKey) {
       if(a.carNumber) {
            let details = a.carModel || '';
            if(a.carYear) details += ` (${a.carYear})`;
-           carInfo = `<div style="font-size:0.9em; color:#fbbf24; font-weight:bold; margin-top:2px;">🚗 ${a.carNumber} ${details}</div>`;
+           carInfo = `<div style="font-size:0.9em; color:#2596be; font-weight:bold; margin-top:2px;">🚗 ${a.carNumber} ${details}</div>`;
       }
 
       // === חדש: מידע טיפול להיסטוריה ===
@@ -1816,7 +1816,7 @@ function renderSlots(dateKey) {
           if (appt.carYear) details += ` (${appt.carYear})`;
           
           carHtml = `
-          <div style="font-size:0.9em; color:#fbbf24; font-weight:bold; margin-top:2px;">
+          <div style="font-size:0.9em; color:#2596be; font-weight:bold; margin-top:2px;">
              🚗 ${appt.carNumber} ${details}
           </div>`;
       }
@@ -1825,7 +1825,7 @@ function renderSlots(dateKey) {
       let treatmentHtml = '';
       if (appt.treatmentType) {
           treatmentHtml = `
-          <div style="font-size:0.9em; color:#fbbf24; font-weight:bold; margin-top:2px;">
+          <div style="font-size:0.9em; color:#2596be; font-weight:bold; margin-top:2px;">
              🛠️ ${appt.treatmentType}
           </div>`;
       }
